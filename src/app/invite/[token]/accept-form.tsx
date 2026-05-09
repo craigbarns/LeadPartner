@@ -65,7 +65,12 @@ export function InviteAcceptForm({
       return;
     }
     toast.success("Bienvenue !");
-    router.push("/dashboard");
+    const sigEnabled = process.env.NEXT_PUBLIC_ENABLE_CONTRACT_SIGNATURE === "true";
+    if (sigEnabled && role === "referrer") {
+      router.push("/onboarding/referrer");
+    } else {
+      router.push("/dashboard");
+    }
     router.refresh();
   }
 
