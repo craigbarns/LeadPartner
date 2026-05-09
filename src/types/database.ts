@@ -51,6 +51,17 @@ export type CommissionBase =
   | "signed_quote"
   | "collected_revenue";
 
+export type ContractStatus =
+  | "draft"
+  | "pending_info"
+  | "sent"
+  | "signed"
+  | "declined"
+  | "expired"
+  | "canceled";
+
+export type ReferrerStatus = "individual" | "auto_entrepreneur" | "company";
+
 export interface Database {
   public: {
     Tables: {
@@ -66,6 +77,18 @@ export interface Database {
           subscription_plan: SubscriptionPlan;
           subscription_status: SubscriptionStatus;
           trial_ends_at: string | null;
+          legal_name: string | null;
+          legal_form: string | null;
+          siret: string | null;
+          rcs_city: string | null;
+          capital: number | null;
+          legal_address: string | null;
+          representative_name: string | null;
+          representative_role: string | null;
+          carte_t_number: string | null;
+          carte_t_city: string | null;
+          caisse_garantie: string | null;
+          orias_number: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -84,6 +107,27 @@ export interface Database {
           phone: string | null;
           avatar_url: string | null;
           is_super_admin: boolean;
+          referrer_status: ReferrerStatus | null;
+          birth_date: string | null;
+          birth_place: string | null;
+          nationality: string | null;
+          address: string | null;
+          postal_code: string | null;
+          city: string | null;
+          country: string | null;
+          iban_encrypted: string | null;
+          bic: string | null;
+          social_security_number_encrypted: string | null;
+          siret: string | null;
+          naf_code: string | null;
+          vat_number: string | null;
+          vat_applicable: boolean | null;
+          company_name: string | null;
+          legal_form: string | null;
+          rcs_city: string | null;
+          capital: number | null;
+          legal_representative_name: string | null;
+          legal_representative_role: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -325,6 +369,47 @@ export interface Database {
         };
         Update: Partial<Database["public"]["Tables"]["invitations"]["Row"]>;
       };
+      contracts: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          member_id: string;
+          status: ContractStatus;
+          yousign_signature_request_id: string | null;
+          yousign_document_id: string | null;
+          unsigned_pdf_path: string | null;
+          signed_pdf_path: string | null;
+          contract_data: Json;
+          sent_at: string | null;
+          signed_at: string | null;
+          expires_at: string | null;
+          canceled_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["contracts"]["Row"]> & {
+          tenant_id: string;
+          member_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["contracts"]["Row"]>;
+      };
+      yousign_events: {
+        Row: {
+          id: string;
+          yousign_event_id: string;
+          event_type: string;
+          signature_request_id: string | null;
+          payload: Json;
+          received_at: string;
+          processed_at: string | null;
+        };
+        Insert: Partial<Database["public"]["Tables"]["yousign_events"]["Row"]> & {
+          yousign_event_id: string;
+          event_type: string;
+          payload: Json;
+        };
+        Update: Partial<Database["public"]["Tables"]["yousign_events"]["Row"]>;
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -341,6 +426,8 @@ export interface Database {
       commission_base: CommissionBase;
       subscription_plan: SubscriptionPlan;
       subscription_status: SubscriptionStatus;
+      contract_status: ContractStatus;
+      referrer_status: ReferrerStatus;
     };
   };
 }
