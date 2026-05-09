@@ -19,6 +19,7 @@ We integrate **Yousign** (eIDAS-compliant electronic signature) to require a sig
 
 - A referrer **cannot access the dashboard** until their contract is signed (blocking flow).
 - Contract is **auto-generated per tenant industry** with industry-specific legal clauses.
+- Contract clauses **adapt to the referrer's legal status** (individual, auto-entrepreneur, company) — different identification fields, tax mentions, and liability clauses.
 - Signature uses **Yousign Standard level** (email click, eIDAS-compliant, no SMS OTP cost).
 - Admin gets a manual override to mark a contract as "signed offline" (for paper exceptions).
 - Signed PDFs are archived in private Supabase Storage.
@@ -27,7 +28,7 @@ We integrate **Yousign** (eIDAS-compliant electronic signature) to require a sig
 
 - Multi-signer workflows beyond admin → referrer (2 signers max).
 - Contract templates editable per tenant in-app (industry-default templates only for v1).
-- Support for legal entities, freelancers, or salaried referrers (v1 targets **individual occasional referrers** only — `particuliers occasionnels`).
+- Support for salaried referrers operating with employer authorization (uncommon, deferred).
 - Contract amendments / versioning workflow (v1: one active contract per `(tenant, member)`; renewal creates a new contract).
 - Internationalization (FR-only for v1).
 
@@ -49,7 +50,15 @@ This spec covers the signature integration. Out of scope:
 
 3. NEW: "Complete your information" step
    └─→ /onboarding/referrer
-       Form: birth info, address, phone, social security number, IBAN
+       Step 1 — Choose legal status:
+         a. Particulier (individual, occasional)
+         b. Auto-entrepreneur / Entreprise individuelle
+         c. Société (SAS, SARL, SASU, EURL, EI à l'IS, etc.)
+       Step 2 — Status-specific form:
+         - Particulier: birth info, address, phone, SSN, IBAN
+         - Auto-entrepreneur: above + SIRET, NAF/APE code, VAT status, RC Pro (optional)
+         - Société: company name, legal form, SIRET, RCS, capital,
+           legal rep name + role, registered address, VAT number, IBAN
        (HTTPS, clear RGPD notices)
 
 4. NEW: Contract generation + signature
@@ -140,20 +149,51 @@ create table public.yousign_events (
 
 ### Profile additions (referrer info for contract)
 
+Referrers can be one of three legal statuses. Common fields are mandatory ; status-specific fields are validated server-side based on `referrer_status`.
+
 ```sql
+create type public.referrer_status as enum (
+  'individual',          -- particulier occasionnel
+  'auto_entrepreneur',   -- micro-entreprise / EI
+  'company'              -- SAS, SARL, SASU, EURL, etc.
+);
+
 alter table public.profiles
+  -- Common to all statuses
+  add column referrer_status public.referrer_status,
   add column birth_date date,
   add column birth_place text,
   add column nationality text default 'Française',
-  add column address text,
+  add column address text,             -- personal address (individual) or registered address (company)
   add column postal_code text,
   add column city text,
   add column country text default 'France',
   add column phone text,
-  add column social_security_number_encrypted bytea,  -- AES-256-GCM
-  add column iban_encrypted bytea,
-  add column bic text;
+  add column iban_encrypted bytea,     -- AES-256-GCM, common to all
+  add column bic text,
+
+  -- Individual only
+  add column social_security_number_encrypted bytea,
+
+  -- Auto-entrepreneur and company
+  add column siret text,
+  add column naf_code text,            -- code APE/NAF
+  add column vat_number text,          -- nullable (auto-entrepreneur in franchise = no VAT)
+  add column vat_applicable boolean default false,
+
+  -- Company only
+  add column company_name text,        -- raison sociale
+  add column legal_form text,          -- 'SAS', 'SARL', 'SASU', 'EURL'...
+  add column rcs_city text,
+  add column capital numeric,
+  add column legal_representative_name text,
+  add column legal_representative_role text;  -- 'Président', 'Gérant', 'Directeur Général'
 ```
+
+Server-side validation enforces required-field combinations:
+- `individual` → requires birth_date, address, phone, social_security_number, iban
+- `auto_entrepreneur` → requires birth_date, address, phone, siret, iban (+ optional VAT)
+- `company` → requires company_name, legal_form, siret, rcs_city, capital, legal_representative_name, legal_representative_role, address (registered), iban
 
 ### Tenant additions (legal info for contract)
 
@@ -220,7 +260,9 @@ src/lib/contracts/
 │   └── other.tsx
 ├── clauses/
 │   ├── common.ts             # RGPD, confidentiality, duration, jurisdiction
-│   └── industry-specific.ts  # Per-industry legal clauses
+│   ├── industry-specific.ts  # Per-industry legal clauses (Hoguet, ORIAS, etc.)
+│   └── status-specific.ts    # Per-referrer-status clauses (individual / AE / company)
+├── parties.tsx               # Renders the "Parties" section adapted to referrer_status
 ├── generator.ts              # generateContractPDF(tenant, member, rule) → Buffer
 └── encryption.ts             # AES-256-GCM helpers for PII
 
@@ -265,6 +307,32 @@ ENCRYPTION_KEY               # 32 bytes base64, for IBAN/SSN encryption
 ENABLE_CONTRACT_SIGNATURE    # Feature flag, default false
 ```
 
+## Contract Content per Referrer Status
+
+The same industry template renders differently in 3 sections based on `referrer_status`:
+
+### "Parties" section
+
+| Status | Identifier shown | Mentions |
+|---|---|---|
+| `individual` | First/last name, birth date and place, address, nationality | "Ci-après dénommé l'Apporteur, agissant à titre personnel à titre occasionnel" |
+| `auto_entrepreneur` | First/last name, address, SIRET, NAF code | "Auto-entrepreneur immatriculé au RCS/RM sous le n° [SIRET]" + VAT mention if applicable |
+| `company` | Company name, legal form, capital, RCS city, SIRET, registered address, legal representative name + role | "Ci-après dénommé l'Apporteur, représenté par [name], en sa qualité de [role], dûment habilité" |
+
+### "Rémunération" section
+
+- `individual` → adds clause: "L'Apporteur déclare exercer cette activité à titre occasionnel, ne dépassant pas trois opérations par année civile. Au-delà, une régularisation en activité professionnelle sera nécessaire." + IFU declaration mention
+- `auto_entrepreneur` → adds: "Les commissions seront facturées par l'Apporteur conformément à son régime de micro-entreprise. La franchise en base de TVA s'applique sauf mention contraire."
+- `company` → adds: "Les commissions seront facturées par la Société conformément à ses obligations comptables et fiscales. La TVA sera applicable au taux en vigueur."
+
+### "Signature" section (in PDF)
+
+- `individual` → "Lu et approuvé, [Name], date" — single signature
+- `auto_entrepreneur` → "Lu et approuvé, [Name], auto-entrepreneur, SIRET [...]"
+- `company` → "Pour la Société [Name], M./Mme [legal_rep_name], [legal_rep_role]" — signature with company seal placeholder
+
+In all cases, only one Yousign signer (the referrer themselves, or the company's legal representative for `company` status).
+
 ## Yousign API Flow (v3)
 
 1. `POST /signature_requests` → returns `signature_request_id`
@@ -306,10 +374,12 @@ Signed PDF retrieval: `GET /signature_requests/{id}/documents/{document_id}/down
 
 ### Unit tests
 
-- `lib/contracts/generator.test.ts` — render PDF for each industry, assert presence of industry-specific clauses
+- `lib/contracts/generator.test.ts` — render PDF for each (industry × referrer_status) combination, assert presence of expected clauses
+- `lib/contracts/parties.test.ts` — verify Parties section renders correct identifiers per status
 - `lib/contracts/encryption.test.ts` — round-trip, missing key error, malformed ciphertext
 - `lib/yousign/webhook.test.ts` — valid HMAC accepted, invalid rejected, malformed payload rejected
 - `lib/yousign/client.test.ts` — request building, error response handling
+- `app/onboarding/referrer/validation.test.ts` — required-field validation per `referrer_status`
 
 ### Integration tests
 
@@ -342,7 +412,8 @@ None at this time. All clarifications resolved during brainstorming session.
 
 - Multi-language templates (EN, ES) once internationalization is added to the app
 - Per-tenant contract template editor (admin uploads custom PDF + maps fields)
-- Support for freelancer / company referrers (additional KYC and contract clauses)
+- Support for salaried referrers (with employer authorization workflow)
 - Contract amendments and versioning history
 - Bulk re-signing flow when commission rules change materially
-- Integration with tax filing (IFU export from signed contracts)
+- Integration with tax filing (IFU export for individual referrers, invoice import for AE/company)
+- KYC automation (SIRET lookup via INSEE Sirene API, IBAN validation via Open Banking)
