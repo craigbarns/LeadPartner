@@ -1,0 +1,154 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Ivoire chaud, encre profonde, accent lime électrique. */
+    --background: 38 33% 96%;       /* #FAF7F0 ivoire */
+    --foreground: 30 12% 11%;       /* #1F1B17 encre */
+    --card: 0 0% 100%;
+    --card-foreground: 30 12% 11%;
+    --popover: 38 33% 98%;
+    --popover-foreground: 30 12% 11%;
+    --primary: 30 12% 11%;
+    --primary-foreground: 38 33% 96%;
+    --secondary: 35 20% 92%;
+    --secondary-foreground: 30 12% 11%;
+    --muted: 35 18% 90%;
+    --muted-foreground: 30 8% 38%;
+    --accent: 70 100% 50%;          /* #D4FF00 lime */
+    --accent-foreground: 30 12% 11%;
+    --destructive: 5 75% 45%;
+    --destructive-foreground: 38 33% 96%;
+    --success: 70 100% 50%;         /* identique à l'accent */
+    --success-foreground: 30 12% 11%;
+    --warning: 35 95% 50%;
+    --warning-foreground: 30 12% 11%;
+    --border: 35 12% 84%;
+    --input: 35 12% 84%;
+    --ring: 30 12% 11%;
+    --radius: 2px;                  /* corners quasi droits */
+  }
+
+  .dark {
+    --background: 30 8% 7%;         /* #131110 graphite */
+    --foreground: 38 33% 92%;
+    --card: 30 8% 9%;
+    --card-foreground: 38 33% 92%;
+    --popover: 30 8% 9%;
+    --popover-foreground: 38 33% 92%;
+    --primary: 38 33% 92%;
+    --primary-foreground: 30 8% 7%;
+    --secondary: 30 6% 13%;
+    --secondary-foreground: 38 33% 92%;
+    --muted: 30 6% 13%;
+    --muted-foreground: 30 6% 55%;
+    --accent: 70 100% 50%;
+    --accent-foreground: 30 8% 7%;
+    --destructive: 5 65% 50%;
+    --destructive-foreground: 38 33% 92%;
+    --success: 70 100% 50%;
+    --success-foreground: 30 8% 7%;
+    --warning: 35 95% 55%;
+    --warning-foreground: 30 8% 7%;
+    --border: 30 6% 18%;
+    --input: 30 6% 18%;
+    --ring: 38 33% 92%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display), ui-serif, Georgia, serif;
+    font-feature-settings: "ss01";
+    letter-spacing: -0.01em;
+  }
+  .font-mono {
+    font-family: var(--font-mono), ui-monospace, "SF Mono", Menlo, monospace;
+    font-feature-settings: "tnum";
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  .tracking-tightest {
+    letter-spacing: -0.04em;
+  }
+  .micro {
+    @apply text-[10px] uppercase tracking-[0.18em] font-medium;
+  }
+  .grid-bg {
+    background-image:
+      linear-gradient(to right, hsl(var(--border) / 0.5) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.5) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+  .grain {
+    position: relative;
+    isolation: isolate;
+  }
+  .grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.06;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .accent-bar::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background-color: hsl(var(--accent));
+  }
+
+  @keyframes ticker {
+    0% {
+      transform: translateY(0);
+      opacity: 0;
+    }
+    20% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(-6px);
+      opacity: 1;
+    }
+  }
+  .reveal {
+    animation: reveal 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  @keyframes reveal {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
