@@ -6,14 +6,44 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createClient } from "@/lib/supabase/client";
+import { acceptInvitation } from "./actions";
 import type { AppRole } from "@/types/database";
+
+const ROLE_LABELS: Record<string, string> = {
+  company_admin: "Administrateur",
+  collaborator: "Collaborateur",
+  referrer: "Apporteur d'affaires",
+};
+
+const ERROR_MESSAGES: Record<string, string> = {
+  invitation_not_found: "Cette invitation n'existe pas.",
+  invalid_token: "Lien d'invitation invalide.",
+  tenant_mismatch: "Lien d'invitation invalide.",
+  email_mismatch: "Lien d'invitation invalide.",
+  role_mismatch: "Lien d'invitation invalide.",
+  invitation_already_accepted: "Cette invitation a déjà été utilisée. Connectez-vous directement.",
+  invitation_expired: "Cette invitation a expiré. Demandez-en une nouvelle.",
+  already_member_same_role: "Vous êtes déjà membre de cette entreprise avec ce rôle. Connectez-vous directement.",
+  user_creation_failed: "Erreur lors de la création du compte.",
+  signin_failed_after_signup: "Compte créé, mais connexion automatique impossible. Connectez-vous manuellement.",
+};
+
+function describeError(code: string): string {
+  if (code.startsWith("already_member_other_role:")) {
+    const role = code.split(":")[1];
+    return `Vous êtes déjà membre de cette entreprise en tant que « ${ROLE_LABELS[role] ?? role} ». Un même utilisateur ne peut pas avoir deux rôles différents.`;
+  }
+  if (code.startsWith("membership_failed:")) {
+    return `Erreur lors de l'ajout à l'équipe : ${code.split(":").slice(1).join(":")}`;
+  }
+  return ERROR_MESSAGES[code] ?? `Erreur : ${code}`;
+}
 
 export function InviteAcceptForm({
   tenantId,
   email,
   role,
-  token: _token,
+  token,
   invitationId,
 }: {
   tenantId: string;
@@ -30,47 +60,25 @@ export function InviteAcceptForm({
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     setLoading(true);
-    const supabase = createClient();
-    const { data, error } = await supabase.auth.signUp({
+
+    const result = await acceptInvitation({
+      invitationId,
+      tenantId,
       email,
-      password,
-      options: {
-        data: { full_name: fullName },
-      },
-    });
-
-    if (error || !data.user) {
-      setLoading(false);
-      toast.error(error?.message ?? "Erreur lors de la création du compte.");
-      return;
-    }
-
-    const { error: memberError } = await supabase.from("tenant_members").insert({
-      tenant_id: tenantId,
-      user_id: data.user.id,
       role,
-      status: "active",
+      fullName,
+      password,
+      token,
     });
 
-    if (!memberError) {
-      await supabase
-        .from("invitations")
-        .update({ accepted_at: new Date().toISOString() })
-        .eq("id", invitationId);
-    }
-
-    setLoading(false);
-    if (memberError) {
-      toast.error(memberError.message);
+    if (!result.ok) {
+      setLoading(false);
+      toast.error(describeError(result.error));
       return;
     }
+
     toast.success("Bienvenue !");
-    const sigEnabled = process.env.NEXT_PUBLIC_ENABLE_CONTRACT_SIGNATURE === "true";
-    if (sigEnabled && role === "referrer") {
-      router.push("/onboarding/referrer");
-    } else {
-      router.push("/dashboard");
-    }
+    router.push(result.redirectTo);
     router.refresh();
   }
 
