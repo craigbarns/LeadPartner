@@ -144,7 +144,7 @@ export async function sendContractForMember(memberId: string): Promise<SendContr
       signerEmail: profile.email,
       signerFirstName: first || 'Apporteur',
       signerLastName: rest.join(' ') || first || 'Apporteur',
-      signerPhone: profile.phone ?? undefined,
+      signerPhone: profile.phone?.trim() || undefined,
       pdfBuffer,
       pdfFilename: 'contrat-apporteur.pdf',
     })

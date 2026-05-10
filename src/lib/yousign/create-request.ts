@@ -1,4 +1,5 @@
 import { yousign } from './client'
+import { formatPhoneForYousign } from './phone'
 import type { YousignSignatureRequest, YousignSigner, YousignDocument } from './types'
 
 interface CreateRequestInput {
@@ -45,16 +46,26 @@ export async function createSignatureRequest(
   )
   const signaturePage = Math.max(1, doc.total_pages ?? 1)
 
+  const phone = formatPhoneForYousign(input.signerPhone)
+
+  const signerInfo: {
+    first_name: string
+    last_name: string
+    email: string
+    locale: string
+    phone_number?: string
+  } = {
+    first_name: input.signerFirstName,
+    last_name: input.signerLastName,
+    email: input.signerEmail,
+    locale: 'fr',
+  }
+  if (phone) signerInfo.phone_number = phone
+
   const signer = await yousign.post<YousignSigner>(
     `/signature_requests/${sr.id}/signers`,
     {
-      info: {
-        first_name: input.signerFirstName,
-        last_name: input.signerLastName,
-        email: input.signerEmail,
-        phone_number: input.signerPhone,
-        locale: 'fr',
-      },
+      info: signerInfo,
       signature_level: 'electronic_signature',
       signature_authentication_mode: 'no_otp',
       fields: [
