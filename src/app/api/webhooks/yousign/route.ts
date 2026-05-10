@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { verifyYousignSignature } from '@/lib/yousign/webhook'
-import { downloadSignedPdf } from '@/lib/yousign/create-request'
+import { syncContractWithYousign } from '@/lib/contracts/sync'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import type { YousignWebhookPayload } from '@/lib/yousign/types'
 
@@ -56,22 +56,10 @@ export async function POST(req: Request) {
   }
 
   switch (payload.event_name) {
-    case 'signature_request.done': {
-      const pdf = await downloadSignedPdf(sr.id, contract.yousign_document_id!)
-      const signedPath = `${contract.tenant_id}/${contract.id}.pdf`
-      const pdfBytes = new Uint8Array(pdf)
-      await admin.storage.from('contracts-signed').upload(signedPath, pdfBytes, {
-        contentType: 'application/pdf',
-        upsert: true,
-      })
-      await admin
-        .from('contracts')
-        .update({
-          status: 'signed',
-          signed_at: new Date().toISOString(),
-          signed_pdf_path: signedPath,
-        })
-        .eq('id', contract.id)
+    case 'signature_request.done':
+    case 'signer.signed':
+    case 'signer.done': {
+      await syncContractWithYousign(contract.id)
       break
     }
     case 'signer.declined':

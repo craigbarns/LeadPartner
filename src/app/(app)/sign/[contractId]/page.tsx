@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { sendContractForMember, SendContractError } from '@/lib/contracts/send'
+import { syncContractWithYousign } from '@/lib/contracts/sync'
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Brouillon',
@@ -27,13 +28,32 @@ export default async function SignPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: contract } = await supabase
+  const { data: initialContract } = await supabase
     .from('contracts')
     .select('*')
     .eq('id', contractId)
     .single()
 
-  if (!contract) notFound()
+  if (!initialContract) notFound()
+
+  let contract = initialContract
+  let syncError: string | null = null
+
+  if (contract.status === 'sent') {
+    try {
+      const synced = await syncContractWithYousign(contract.id)
+      if (synced && synced.status !== contract.status) {
+        const { data: refreshed } = await supabase
+          .from('contracts')
+          .select('*')
+          .eq('id', contract.id)
+          .single()
+        contract = refreshed ?? contract
+      }
+    } catch (e) {
+      syncError = (e as Error).message
+    }
+  }
 
   async function resendContract() {
     'use server'
@@ -114,7 +134,9 @@ export default async function SignPage({
               </p>
             </>
           )}
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {(error || syncError) && (
+            <p className="text-sm text-destructive">{error ?? syncError}</p>
+          )}
           <p className="text-sm">
             Statut actuel : <strong>{STATUS_LABELS[contract.status] ?? contract.status}</strong>
           </p>
