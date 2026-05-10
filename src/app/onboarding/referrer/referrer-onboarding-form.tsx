@@ -52,7 +52,11 @@ export function ReferrerOnboardingForm({ initial }: { initial: any }) {
       ;(data as any).referrer_status = status
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(data as any).vat_applicable = data.vat_applicable === 'on'
-      await saveReferrerInfo(data)
+      const result = await saveReferrerInfo(data)
+      if (result?.ok === false) {
+        setError(result.error)
+        setSubmitting(false)
+      }
     } catch (e) {
       setError((e as Error)?.message ?? 'Erreur')
       setSubmitting(false)
