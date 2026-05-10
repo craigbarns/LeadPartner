@@ -1,6 +1,8 @@
 # LeadPartner
 
 > SaaS multi-tenant qui permet à n'importe quelle entreprise de lancer son propre programme d'apporteurs d'affaires.
+>
+> **Production : [leadpartner.app](https://leadpartner.app)**
 
 LeadPartner est une plateforme par abonnement. Chaque entreprise cliente dispose de son espace isolé (multi-tenant strict) avec ses utilisateurs, ses apporteurs, ses opportunités, ses règles de commission et son branding personnalisable. Le logiciel ne vend pas de leads — il fournit l'outil de gestion du programme.
 
@@ -147,7 +149,7 @@ Dans l'éditeur SQL Supabase, après avoir créé un compte via l'app :
 ```sql
 update public.profiles
 set is_super_admin = true
-where email = 'admin@votre-domaine.com';
+where email = 'admin@leadpartner.app';
 ```
 
 Cette personne aura accès au panneau `/super-admin`.
@@ -246,15 +248,29 @@ Règles clés :
 ### Vercel (recommandé)
 
 ```bash
-# Connecter le repo à Vercel
-# Définir les variables d'environnement :
+# 1. Connecter le repo à Vercel
+# 2. Définir les variables d'environnement :
 #   NEXT_PUBLIC_SUPABASE_URL
 #   NEXT_PUBLIC_SUPABASE_ANON_KEY
 #   SUPABASE_SERVICE_ROLE_KEY
-#   NEXT_PUBLIC_APP_URL (= https://votre-domaine.com)
-
-# Build automatique sur push
+#   NEXT_PUBLIC_APP_URL=https://leadpartner.app
+#
+# 3. Domaine personnalisé : Settings > Domains → ajouter "leadpartner.app"
+#    Vercel pousse automatiquement HTTPS (HSTS preload requis pour .app)
+#
+# 4. Build automatique sur push (main → production)
 ```
+
+### DNS — `.app` requiert HTTPS
+
+Comme tous les TLDs Google (`.app`, `.dev`, `.page`), `leadpartner.app` est dans la liste **HSTS preload**.
+Cela signifie : aucun navigateur ne servira `http://leadpartner.app` — uniquement `https://`.
+Vercel fournit automatiquement le certificat SSL et redirige `apex` ↔ `www`.
+
+| Type | Nom | Valeur |
+|------|-----|--------|
+| `A` | `@` | `76.76.21.21` (Vercel) |
+| `CNAME` | `www` | `cname.vercel-dns.com.` |
 
 ### Supabase
 

@@ -27,10 +27,10 @@ Dans **Authentication > Providers > Email** :
 
 Dans **Authentication > URL Configuration** :
 
-- **Site URL** : `http://localhost:3000` en dev, `https://votre-domaine.com` en prod
+- **Site URL** : `http://localhost:3000` en dev, `https://leadpartner.app` en prod
 - **Redirect URLs** : ajoutez
   - `http://localhost:3000/auth/callback`
-  - `https://votre-domaine.com/auth/callback`
+  - `https://leadpartner.app/auth/callback`
 
 ## 4. Exécuter les migrations
 

@@ -23,10 +23,44 @@ const mono = JetBrains_Mono({
   display: "swap",
 });
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://leadpartner.app";
+
 export const metadata: Metadata = {
-  title: "LeadPartner — l'infrastructure de votre programme d'apporteurs",
+  metadataBase: new URL(APP_URL),
+  title: {
+    default: "LeadPartner — l'infrastructure de votre programme d'apporteurs",
+    template: "%s · LeadPartner",
+  },
   description:
-    "Tout l'outillage pour recruter, suivre et rémunérer vos apporteurs d'affaires. Sans se mélanger les pinceaux. Sans tableur Excel.",
+    "Tout l'outillage pour recruter, suivre et rémunérer vos apporteurs d'affaires. Sans tableur Excel.",
+  applicationName: "LeadPartner",
+  authors: [{ name: "LeadPartner" }],
+  keywords: [
+    "apporteur d'affaires",
+    "programme de parrainage",
+    "referral program",
+    "SaaS",
+    "lead management",
+    "commission",
+  ],
+  openGraph: {
+    type: "website",
+    locale: "fr_FR",
+    url: APP_URL,
+    siteName: "LeadPartner",
+    title: "LeadPartner — l'infrastructure de votre programme d'apporteurs",
+    description:
+      "Recrutez, attribuez, suivez et rémunérez vos apporteurs d'affaires depuis un seul outil.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "LeadPartner",
+    description:
+      "L'infrastructure de votre programme d'apporteurs d'affaires.",
+  },
+  icons: {
+    icon: [{ url: "/favicon.ico" }],
+  },
 };
 
 export default function RootLayout({
