@@ -5,13 +5,14 @@ export class YousignError extends Error {
 }
 
 function getApiKey(): string {
-  const key = process.env.YOUSIGN_API_KEY
+  const key = process.env.YOUSIGN_API_KEY?.trim()
   if (!key) throw new Error('YOUSIGN_API_KEY is not configured')
   return key
 }
 
 function getApiBase(): string {
-  return process.env.YOUSIGN_API_BASE ?? 'https://api-sandbox.yousign.app/v3'
+  const apiBase = process.env.YOUSIGN_API_BASE?.trim() || 'https://api-sandbox.yousign.app/v3'
+  return apiBase.replace(/\/+$/, '')
 }
 
 async function request<T>(
@@ -32,11 +33,19 @@ async function request<T>(
 
   const res = await fetch(`${getApiBase()}${path}`, { method, headers, body })
   const text = await res.text()
-  const data = text ? JSON.parse(text) : null
+  const data = text ? safeParseJson(text) : null
   if (!res.ok) {
     throw new YousignError(res.status, data, `Yousign ${method} ${path} failed: ${res.status}`)
   }
   return data as T
+}
+
+function safeParseJson(text: string): unknown {
+  try {
+    return JSON.parse(text)
+  } catch {
+    return text
+  }
 }
 
 export const yousign = {

@@ -3,6 +3,7 @@ import { generateContractPDF } from '@/lib/contracts/generator'
 import { bytesFromBytea, decrypt } from '@/lib/contracts/encryption'
 import { maskIban, maskSSN } from '@/lib/contracts/snapshot'
 import { createSignatureRequest } from '@/lib/yousign/create-request'
+import { YousignError } from '@/lib/yousign/client'
 import type { ContractSnapshot, ReferrerSnapshot } from '@/lib/contracts/types'
 
 export type SendContractResult = { contractId: string }
@@ -91,15 +92,26 @@ export async function sendContractForMember(memberId: string): Promise<SendContr
 
   const fullName: string = profile.full_name ?? profile.email ?? ''
   const [first, ...rest] = fullName.split(' ')
-  const created = await createSignatureRequest({
-    name: `Contrat d'apporteur — ${tenant.legal_name ?? tenant.name}`,
-    signerEmail: profile.email,
-    signerFirstName: first || 'Apporteur',
-    signerLastName: rest.join(' ') || first || 'Apporteur',
-    signerPhone: profile.phone ?? undefined,
-    pdfBuffer,
-    pdfFilename: 'contrat-apporteur.pdf',
-  })
+  let created
+  try {
+    created = await createSignatureRequest({
+      name: `Contrat d'apporteur — ${tenant.legal_name ?? tenant.name}`,
+      signerEmail: profile.email,
+      signerFirstName: first || 'Apporteur',
+      signerLastName: rest.join(' ') || first || 'Apporteur',
+      signerPhone: profile.phone ?? undefined,
+      pdfBuffer,
+      pdfFilename: 'contrat-apporteur.pdf',
+    })
+  } catch (e) {
+    if (e instanceof YousignError) {
+      throw new SendContractError(
+        'yousign_request_failed',
+        describeYousignError(e),
+      )
+    }
+    throw e
+  }
 
   await admin
     .from('contracts')
@@ -113,6 +125,14 @@ export async function sendContractForMember(memberId: string): Promise<SendContr
     .eq('id', contract.id)
 
   return { contractId: contract.id }
+}
+
+function describeYousignError(error: YousignError) {
+  const body = typeof error.body === 'string'
+    ? error.body
+    : JSON.stringify(error.body)
+
+  return `Yousign a refuse la demande (${error.status}). ${body ?? ''}`.trim()
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
