@@ -30,7 +30,9 @@ const NAV_BY_ROLE: Record<AppRole, NavItem[]> = {
   collaborator: [
     { href: "/dashboard", label: "Tableau de bord" },
     { href: "/opportunities", label: "Opportunités" },
+    { href: "/referrers", label: "Apporteurs" },
     { href: "/commissions", label: "Commissions" },
+    { href: "/team", label: "Équipe" },
   ],
   referrer: [
     { href: "/dashboard", label: "Tableau de bord" },

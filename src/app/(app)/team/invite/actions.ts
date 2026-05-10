@@ -31,9 +31,16 @@ export async function createInvitation(input: {
     .select("tenant_id, role")
     .eq("user_id", user.id)
     .eq("tenant_id", input.tenantId)
-    .eq("role", "company_admin")
+    .in("role", ["company_admin", "collaborator"])
     .maybeSingle();
   if (!caller || caller.tenant_id !== input.tenantId) return { ok: false, error: "forbidden" };
+
+  if (caller.role === "collaborator" && input.role === "company_admin") {
+    return {
+      ok: false,
+      error: "Seul un administrateur entreprise peut inviter un autre administrateur.",
+    };
+  }
 
   try {
     await requireActiveSubscription(caller.tenant_id);

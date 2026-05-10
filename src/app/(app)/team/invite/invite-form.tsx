@@ -23,8 +23,19 @@ const ROLE_OPTIONS = [
   { value: "referrer", label: "Apporteur d'affaires" },
 ] as const;
 
-export function InviteForm({ tenantId, userId }: { tenantId: string; userId: string }) {
+export function InviteForm({
+  tenantId,
+  userId,
+  canInviteAdministrator,
+}: {
+  tenantId: string;
+  userId: string;
+  canInviteAdministrator: boolean;
+}) {
   const router = useRouter();
+  const roleChoices = canInviteAdministrator
+    ? ROLE_OPTIONS
+    : ROLE_OPTIONS.filter((r) => r.value !== "company_admin");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<(typeof ROLE_OPTIONS)[number]["value"]>("referrer");
   const [loading, setLoading] = useState(false);
@@ -93,7 +104,7 @@ export function InviteForm({ tenantId, userId }: { tenantId: string; userId: str
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {ROLE_OPTIONS.map((r) => (
+                  {roleChoices.map((r) => (
                     <SelectItem key={r.value} value={r.value}>
                       {r.label}
                     </SelectItem>

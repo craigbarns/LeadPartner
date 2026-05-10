@@ -65,6 +65,13 @@ const NAV_BY_ROLE: Record<AppRole, { section: string; items: NavItem[] }[]> = {
         { href: "/commissions", label: "Commissions", icon: CreditCard },
       ],
     },
+    {
+      section: "Programme",
+      items: [
+        { href: "/referrers", label: "Apporteurs", icon: Handshake },
+        { href: "/team", label: "Équipe", icon: Users },
+      ],
+    },
   ],
   referrer: [
     {

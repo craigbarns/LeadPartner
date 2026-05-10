@@ -23,7 +23,7 @@ import type { AppRole } from "@/types/database";
 export const metadata = { title: "Équipe · LeadPartner" };
 
 export default async function TeamPage() {
-  const session = await requireRole(["company_admin", "super_admin"]);
+  const session = await requireRole(["company_admin", "collaborator", "super_admin"]);
   if (!session.tenant) return null;
 
   const supabase = await createClient();

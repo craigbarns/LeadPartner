@@ -21,7 +21,7 @@ import { formatDate } from "@/lib/utils";
 export const metadata = { title: "Apporteurs · LeadPartner" };
 
 export default async function ReferrersPage() {
-  const session = await requireRole(["company_admin", "super_admin"]);
+  const session = await requireRole(["company_admin", "collaborator", "super_admin"]);
   if (!session.tenant) return null;
   const supabase = await createClient();
 

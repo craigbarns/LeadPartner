@@ -5,7 +5,7 @@ import { requireRole } from "@/lib/auth";
 export const metadata = { title: "Inviter un membre · LeadPartner" };
 
 export default async function InvitePage() {
-  const session = await requireRole(["company_admin"]);
+  const session = await requireRole(["company_admin", "collaborator"]);
   if (!session.tenant) return null;
   return (
     <div className="space-y-6 max-w-2xl">
@@ -13,7 +13,11 @@ export default async function InvitePage() {
         title="Inviter un membre"
         description="Apporteur, collaborateur interne... Choisissez le rôle adapté."
       />
-      <InviteForm tenantId={session.tenant.id} userId={session.user.id} />
+      <InviteForm
+        tenantId={session.tenant.id}
+        userId={session.user.id}
+        canInviteAdministrator={session.role === "company_admin"}
+      />
     </div>
   );
 }
