@@ -32,14 +32,17 @@ export function OpportunityForm({
   userId,
   role,
   customFields,
+  programs = [],
 }: {
   tenantId: string;
   userId: string;
   role: AppRole;
   customFields: CustomField[];
+  programs?: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [programId, setProgramId] = useState(() => programs[0]?.id ?? "");
 
   const [prospectName, setProspectName] = useState("");
   const [prospectEmail, setProspectEmail] = useState("");
@@ -66,6 +69,7 @@ export function OpportunityForm({
     const supabase = createClient();
     const payload = {
       tenant_id: tenantId,
+      ...(programId ? { program_id: programId } : {}),
       prospect_name: prospectName.trim(),
       prospect_email: prospectEmail || null,
       prospect_phone: prospectPhone || null,
@@ -101,6 +105,26 @@ export function OpportunityForm({
           <CardTitle className="text-base">Informations du prospect</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {programs.length > 0 && (
+            <div className="space-y-2 md:col-span-2">
+              <Label>Programme</Label>
+              <Select value={programId} onValueChange={setProgramId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choisir un programme" />
+                </SelectTrigger>
+                <SelectContent>
+                  {programs.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Utilisé pour appliquer la bonne règle de commission en cas de vente.
+              </p>
+            </div>
+          )}
           <div className="space-y-2 md:col-span-2">
             <Label htmlFor="prospectName">Nom du prospect *</Label>
             <Input

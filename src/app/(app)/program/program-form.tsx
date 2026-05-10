@@ -106,7 +106,10 @@ export function ProgramSettingsForm({
                 Page publique d&apos;inscription
               </Label>
               <p className="text-xs text-muted-foreground">
-                Les apporteurs peuvent s&apos;inscrire sur leadpartner.app/p/{publicSlug}
+                URL d&apos;inscription pour ce programme :{" "}
+                <span className="font-mono break-all">
+                  …/p/{publicSlug}?program={program.slug}
+                </span>
               </p>
             </div>
           </div>

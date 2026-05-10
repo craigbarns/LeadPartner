@@ -38,7 +38,7 @@ const NAV_BY_ROLE: Record<AppRole, NavItem[]> = {
     { href: "/referrers", label: "Apporteurs" },
     { href: "/commissions", label: "Commissions" },
     { href: "/team", label: "Équipe" },
-    { href: "/program", label: "Programme" },
+    { href: "/program", label: "Programmes" },
     { href: "/settings", label: "Paramètres" },
   ],
   collaborator: [

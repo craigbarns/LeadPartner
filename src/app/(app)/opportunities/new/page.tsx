@@ -9,11 +9,18 @@ export default async function NewOpportunityPage() {
   const session = await requireTenant();
   const supabase = await createClient();
 
-  const { data: fields } = await supabase
-    .from("opportunity_fields")
-    .select("id, key, label, type, options, required, sort_order")
-    .eq("tenant_id", session.tenant.id)
-    .order("sort_order", { ascending: true });
+  const [{ data: fields }, { data: programs }] = await Promise.all([
+    supabase
+      .from("opportunity_fields")
+      .select("id, key, label, type, options, required, sort_order")
+      .eq("tenant_id", session.tenant.id)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("programs")
+      .select("id, name")
+      .eq("tenant_id", session.tenant.id)
+      .order("created_at", { ascending: true }),
+  ]);
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -26,6 +33,7 @@ export default async function NewOpportunityPage() {
         userId={session.user.id}
         role={session.role}
         customFields={fields ?? []}
+        programs={programs ?? []}
       />
     </div>
   );

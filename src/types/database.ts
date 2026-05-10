@@ -319,6 +319,7 @@ export interface Database {
         Row: {
           id: string;
           tenant_id: string;
+          program_id: string | null;
           name: string;
           type: CommissionRuleType;
           base: CommissionBase;

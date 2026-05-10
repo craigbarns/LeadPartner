@@ -48,7 +48,7 @@ const NAV_BY_ROLE: Record<AppRole, { section: string; items: NavItem[] }[]> = {
         { href: "/team/invite", label: "Inviter", icon: UserPlus },
         { href: "/referrers", label: "Apporteurs", icon: Handshake },
         { href: "/team", label: "Équipe", icon: Users },
-        { href: "/program", label: "Programme", icon: Sparkles },
+        { href: "/program", label: "Programmes", icon: Sparkles },
       ],
     },
     {

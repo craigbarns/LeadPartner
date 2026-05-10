@@ -10,20 +10,31 @@ export default async function CommissionRulesPage() {
   if (!session.tenant) return null;
 
   const supabase = await createClient();
-  const { data: rules } = await supabase
-    .from("commission_rules")
-    .select("*")
-    .eq("tenant_id", session.tenant.id)
-    .order("is_default", { ascending: false })
-    .order("created_at", { ascending: true });
+  const [{ data: rules }, { data: programs }] = await Promise.all([
+    supabase
+      .from("commission_rules")
+      .select("*")
+      .eq("tenant_id", session.tenant.id)
+      .order("is_default", { ascending: false })
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("programs")
+      .select("id, name, slug")
+      .eq("tenant_id", session.tenant.id)
+      .order("created_at", { ascending: true }),
+  ]);
 
   return (
     <div className="space-y-6 max-w-4xl">
       <PageHeader
         title="Règles de commission"
-        description="Définissez comment les commissions sont calculées pour vos apporteurs."
+        description="Règles globales ou par programme : l’opportunité doit être liée au même programme pour appliquer la règle spécifique."
       />
-      <CommissionRulesEditor tenantId={session.tenant.id} initialRules={rules ?? []} />
+      <CommissionRulesEditor
+        tenantId={session.tenant.id}
+        initialRules={rules ?? []}
+        programs={programs ?? []}
+      />
     </div>
   );
 }

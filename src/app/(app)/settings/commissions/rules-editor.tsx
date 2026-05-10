@@ -41,9 +41,11 @@ const BASE_OPTIONS: { value: CommissionBase; label: string }[] = [
 export function CommissionRulesEditor({
   tenantId,
   initialRules,
+  programs,
 }: {
   tenantId: string;
   initialRules: Rule[];
+  programs: { id: string; name: string; slug: string }[];
 }) {
   const router = useRouter();
   const [rules, setRules] = useState<Rule[]>(initialRules);
@@ -55,28 +57,36 @@ export function CommissionRulesEditor({
       {
         id: crypto.randomUUID(),
         tenant_id: tenantId,
+        program_id: null,
         name: "Nouvelle règle",
         type: "percentage",
         base: "contract_amount",
         fixed_amount: null,
         percentage: 5,
         tiers: [],
-        is_default: r.length === 0,
+        is_default: false,
         created_at: new Date().toISOString(),
       },
     ]);
   }
 
+  function scopeKey(rule: Rule) {
+    return rule.program_id ?? "__global__";
+  }
+
   function update(id: string, patch: Partial<Rule>) {
-    setRules((r) =>
-      r.map((rule) => {
-        if (rule.id !== id) {
-          if (patch.is_default) return { ...rule, is_default: false };
-          return rule;
+    setRules((r) => {
+      const idx = r.findIndex((x) => x.id === id);
+      if (idx === -1) return r;
+      const merged: Rule = { ...r[idx], ...patch };
+      return r.map((rule) => {
+        if (rule.id === id) return merged;
+        if (patch.is_default === true && merged.is_default && scopeKey(rule) === scopeKey(merged)) {
+          return { ...rule, is_default: false };
         }
-        return { ...rule, ...patch };
-      }),
-    );
+        return rule;
+      });
+    });
   }
 
   function remove(id: string) {
@@ -86,6 +96,14 @@ export function CommissionRulesEditor({
   async function save() {
     setLoading(true);
     const supabase = createClient();
+    const hasGlobalDefault = rules.some((x) => x.is_default && x.program_id == null);
+    if (rules.length > 0 && !hasGlobalDefault) {
+      setLoading(false);
+      toast.error(
+        "Ajoutez au moins une règle « par défaut » pour « Tous les programmes » (commission de secours).",
+      );
+      return;
+    }
     const { error: deleteError } = await supabase
       .from("commission_rules")
       .delete()
@@ -99,6 +117,7 @@ export function CommissionRulesEditor({
       const { error } = await supabase.from("commission_rules").insert(
         rules.map((r) => ({
           tenant_id: tenantId,
+          program_id: r.program_id ?? null,
           name: r.name,
           type: r.type,
           base: r.base,
@@ -136,6 +155,31 @@ export function CommissionRulesEditor({
             </Button>
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2 md:col-span-2">
+              <Label>Programme concerné</Label>
+              <Select
+                value={rule.program_id ?? "__all__"}
+                onValueChange={(v) =>
+                  update(rule.id, { program_id: v === "__all__" ? null : v })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Tous les programmes (défaut global)</SelectItem>
+                  {programs.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Une règle « par défaut » par portée : une globale obligatoire, plus une par programme si
+                vous le souhaitez.
+              </p>
+            </div>
             <div className="space-y-2">
               <Label>Type</Label>
               <Select

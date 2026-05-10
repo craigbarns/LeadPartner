@@ -27,10 +27,10 @@ export default async function PublicProgramPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ ref?: string }>;
+  searchParams: Promise<{ ref?: string; program?: string }>;
 }) {
   const { slug } = await params;
-  const { ref } = await searchParams;
+  const { ref, program: programSlug } = await searchParams;
   const supabase = await createServiceClient();
 
   const { data: tenant } = await supabase
@@ -40,13 +40,20 @@ export default async function PublicProgramPage({
     .maybeSingle();
   if (!tenant) notFound();
 
-  const { data: program } = await supabase
+  let programQuery = supabase
     .from("programs")
-    .select("id, name, description, terms, public_signup_enabled")
-    .eq("tenant_id", tenant.id)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    .select("id, name, description, terms, public_signup_enabled, slug")
+    .eq("tenant_id", tenant.id);
+
+  if (programSlug) {
+    programQuery = programQuery.eq("slug", programSlug);
+  } else {
+    programQuery = programQuery.order("created_at", { ascending: true }).limit(1);
+  }
+
+  const { data: program } = await programQuery.maybeSingle();
+
+  if (programSlug && !program) notFound();
 
   if (!program?.public_signup_enabled) {
     return (
@@ -108,7 +115,7 @@ export default async function PublicProgramPage({
       <div className="max-w-[1200px] mx-auto px-6 lg:px-10 py-16 grid grid-cols-12 gap-6 lg:gap-10">
         {/* Comment ça marche */}
         <section className="col-span-12 lg:col-span-7">
-          <div className="micro text-muted-foreground mb-3">§ Comment ça marche</div>
+          <div className="micro text-muted-foreground mb-3">Comment ça marche</div>
           <h2 className="font-display text-4xl lg:text-5xl tracking-tightest leading-[0.95] mb-10">
             Quatre étapes. <em className="italic">Pas une de plus.</em>
           </h2>
