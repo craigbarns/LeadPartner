@@ -7,6 +7,7 @@ import {
   PlusCircle,
   Target,
   TrendingUp,
+  UserPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -79,11 +80,20 @@ export default async function DashboardPage() {
         title="Tableau de bord"
         description={`Aperçu de l'activité chez ${session.tenant.name}.`}
         actions={
-          <Button asChild className="rounded-none h-11">
-            <Link href="/opportunities/new" className="flex items-center gap-2">
-              <PlusCircle className="h-4 w-4" /> Déclarer une opportunité
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2 justify-end">
+            {(session.role === "company_admin" || session.role === "collaborator") && (
+              <Button asChild variant="outline" className="rounded-none h-11">
+                <Link href="/team/invite" className="flex items-center gap-2">
+                  <UserPlus className="h-4 w-4" /> Inviter
+                </Link>
+              </Button>
+            )}
+            <Button asChild className="rounded-none h-11">
+              <Link href="/opportunities/new" className="flex items-center gap-2">
+                <PlusCircle className="h-4 w-4" /> Déclarer une opportunité
+              </Link>
+            </Button>
+          </div>
         }
       />
 
@@ -173,8 +183,10 @@ export default async function DashboardPage() {
             </Table>
           ) : (
             <div className="p-10 text-sm text-muted-foreground">
-              Aucune opportunité pour le moment. Invitez vos premiers apporteurs depuis la
-              page Équipe.
+              Aucune opportunité pour le moment.{" "}
+              {session.role === "collaborator"
+                ? "Invitez des apporteurs via le bouton « Inviter » ou la page Équipe."
+                : "Invitez vos premiers apporteurs depuis la page Équipe."}
             </div>
           )}
         </section>
@@ -185,26 +197,48 @@ export default async function DashboardPage() {
             <h2 className="font-display text-2xl mt-1">Démarrage rapide</h2>
           </header>
           <div className="divide-y divide-border">
-            {[
-              {
-                href: "/program",
-                num: "01",
-                title: "Configurer le programme",
-                hint: "Conditions, page publique, lien d'invitation",
-              },
-              {
-                href: "/team/invite",
-                num: "02",
-                title: "Inviter votre équipe",
-                hint: "Collaborateurs et apporteurs",
-              },
-              {
-                href: "/settings/commissions",
-                num: "03",
-                title: "Règles de commission",
-                hint: "Fixe, pourcentage ou par paliers",
-              },
-            ].map((step) => (
+            {(session.role === "collaborator"
+              ? [
+                  {
+                    href: "/team/invite",
+                    num: "01",
+                    title: "Inviter un apporteur",
+                    hint: "Générez un lien d’invitation à partager par email",
+                  },
+                  {
+                    href: "/referrers",
+                    num: "02",
+                    title: "Apporteurs",
+                    hint: "Voir la liste et les codes",
+                  },
+                  {
+                    href: "/team",
+                    num: "03",
+                    title: "Équipe",
+                    hint: "Membres et invitations en attente",
+                  },
+                ]
+              : [
+                  {
+                    href: "/program",
+                    num: "01",
+                    title: "Configurer le programme",
+                    hint: "Conditions, page publique, lien d'invitation",
+                  },
+                  {
+                    href: "/team/invite",
+                    num: "02",
+                    title: "Inviter votre équipe",
+                    hint: "Collaborateurs et apporteurs",
+                  },
+                  {
+                    href: "/settings/commissions",
+                    num: "03",
+                    title: "Règles de commission",
+                    hint: "Fixe, pourcentage ou par paliers",
+                  },
+                ]
+            ).map((step) => (
               <Link
                 key={step.href}
                 href={step.href}

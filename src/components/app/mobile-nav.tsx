@@ -11,6 +11,19 @@ import type { AppRole } from "@/types/database";
 
 type NavItem = { href: string; label: string };
 
+function navItemIsActive(pathname: string, href: string): boolean {
+  if (pathname === href) return true;
+  if (href === "/dashboard") return false;
+  if (href === "/team") {
+    if (!pathname.startsWith("/team")) return false;
+    return (
+      pathname === "/team" ||
+      (pathname.startsWith("/team/") && !pathname.startsWith("/team/invite"))
+    );
+  }
+  return pathname.startsWith(`${href}/`);
+}
+
 const NAV_BY_ROLE: Record<AppRole, NavItem[]> = {
   super_admin: [
     { href: "/super-admin", label: "Tableau de bord" },
@@ -21,6 +34,7 @@ const NAV_BY_ROLE: Record<AppRole, NavItem[]> = {
   company_admin: [
     { href: "/dashboard", label: "Tableau de bord" },
     { href: "/opportunities", label: "Opportunités" },
+    { href: "/team/invite", label: "Inviter" },
     { href: "/referrers", label: "Apporteurs" },
     { href: "/commissions", label: "Commissions" },
     { href: "/team", label: "Équipe" },
@@ -30,6 +44,7 @@ const NAV_BY_ROLE: Record<AppRole, NavItem[]> = {
   collaborator: [
     { href: "/dashboard", label: "Tableau de bord" },
     { href: "/opportunities", label: "Opportunités" },
+    { href: "/team/invite", label: "Inviter" },
     { href: "/referrers", label: "Apporteurs" },
     { href: "/commissions", label: "Commissions" },
     { href: "/team", label: "Équipe" },
@@ -60,8 +75,7 @@ export function MobileNav({ role }: { role: AppRole }) {
         <div className="p-4 border-b font-semibold">Navigation</div>
         <nav className="p-2 space-y-1">
           {items.map((item) => {
-            const isActive =
-              pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+            const isActive = navItemIsActive(pathname, item.href);
             return (
               <Link
                 key={item.href}

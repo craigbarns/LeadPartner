@@ -13,6 +13,7 @@ import {
   Sparkles,
   Tags,
   Target,
+  UserPlus,
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,7 @@ const NAV_BY_ROLE: Record<AppRole, { section: string; items: NavItem[] }[]> = {
     {
       section: "Programme",
       items: [
+        { href: "/team/invite", label: "Inviter", icon: UserPlus },
         { href: "/referrers", label: "Apporteurs", icon: Handshake },
         { href: "/team", label: "Équipe", icon: Users },
         { href: "/program", label: "Programme", icon: Sparkles },
@@ -68,6 +70,7 @@ const NAV_BY_ROLE: Record<AppRole, { section: string; items: NavItem[] }[]> = {
     {
       section: "Programme",
       items: [
+        { href: "/team/invite", label: "Inviter", icon: UserPlus },
         { href: "/referrers", label: "Apporteurs", icon: Handshake },
         { href: "/team", label: "Équipe", icon: Users },
       ],
@@ -93,6 +96,20 @@ const ROLE_LABEL: Record<AppRole, string> = {
   collaborator: "Collaborateur",
   referrer: "Apporteur",
 };
+
+/** Évite que « Équipe » soit actif sur `/team/invite`. */
+function navItemIsActive(pathname: string, href: string): boolean {
+  if (pathname === href) return true;
+  if (href === "/dashboard") return false;
+  if (href === "/team") {
+    if (!pathname.startsWith("/team")) return false;
+    return (
+      pathname === "/team" ||
+      (pathname.startsWith("/team/") && !pathname.startsWith("/team/invite"))
+    );
+  }
+  return pathname.startsWith(`${href}/`);
+}
 
 export function Sidebar({
   role,
@@ -132,9 +149,7 @@ export function Sidebar({
             <div className="micro text-muted-foreground px-2 mb-2">{section.section}</div>
             {section.items.map((item) => {
               const Icon = item.icon;
-              const isActive =
-                pathname === item.href ||
-                (item.href !== "/dashboard" && pathname.startsWith(item.href));
+              const isActive = navItemIsActive(pathname, item.href);
               return (
                 <Link
                   key={item.href}
