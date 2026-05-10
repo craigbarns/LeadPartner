@@ -58,9 +58,8 @@ export const metadata: Metadata = {
     description:
       "L'infrastructure de votre programme d'apporteurs d'affaires.",
   },
-  icons: {
-    icon: [{ url: "/favicon.ico" }],
-  },
+  // icons + opengraph-image + twitter-image sont auto-détectés par Next.js
+  // depuis src/app/icon.svg, src/app/apple-icon.tsx, src/app/opengraph-image.tsx
 };
 
 export default function RootLayout({
