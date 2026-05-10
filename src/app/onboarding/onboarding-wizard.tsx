@@ -19,6 +19,36 @@ const STEPS = [
   { num: "04", title: "Confirmation", caption: "Création" },
 ];
 
+const SLUG_COLLISION_MAX = 50;
+
+async function firstAvailableTenantSlug(
+  supabase: ReturnType<typeof createClient>,
+  baseSlug: string,
+): Promise<{ slug: string; adjusted: boolean }> {
+  const base = baseSlug.trim();
+  for (let n = 0; n < SLUG_COLLISION_MAX; n++) {
+    const candidate = n === 0 ? base : `${base}-${n}`;
+    const { data, error } = await supabase.rpc("tenant_slug_available", {
+      p_slug: candidate,
+    });
+    if (error) throw error;
+    if (data === true) return { slug: candidate, adjusted: n > 0 };
+  }
+  throw new Error("Aucun identifiant URL disponible après plusieurs tentatives.");
+}
+
+function onboardingErrorMessage(error: { message?: string; code?: string }): string {
+  const msg = error.message ?? "";
+  if (
+    error.code === "23505" ||
+    msg.includes("tenants_slug_key") ||
+    msg.includes("duplicate key value")
+  ) {
+    return "Cet identifiant URL est déjà utilisé. Revenez à l’étape « Entreprise » pour en choisir un autre.";
+  }
+  return msg || "Une erreur est survenue.";
+}
+
 export function OnboardingWizard({ userEmail }: { userEmail: string }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
@@ -45,16 +75,33 @@ export function OnboardingWizard({ userEmail }: { userEmail: string }) {
   async function submit() {
     setLoading(true);
     const supabase = createClient();
-    const finalSlug = slug || slugify(companyName);
+    const requestedSlug = slugify(slug || slugify(companyName));
+    let tenantSlug = requestedSlug;
+    try {
+      const resolved = await firstAvailableTenantSlug(supabase, requestedSlug);
+      tenantSlug = resolved.slug;
+      if (resolved.adjusted) {
+        setSlug(tenantSlug);
+        toast.message("Identifiant URL ajusté", {
+          description: `« ${requestedSlug} » était déjà pris. Utilisation de « ${tenantSlug} ».`,
+        });
+      }
+    } catch (e) {
+      setLoading(false);
+      const err = e as { message?: string };
+      toast.error(err.message ?? "Impossible de vérifier l’identifiant URL.");
+      return;
+    }
+
     const { data, error } = await supabase.rpc("create_tenant", {
       p_name: companyName.trim(),
-      p_slug: finalSlug,
+      p_slug: tenantSlug,
       p_industry: industry,
       p_primary_color: primaryColor,
     });
     setLoading(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(onboardingErrorMessage(error));
       return;
     }
     toast.success("Votre espace est prêt.");

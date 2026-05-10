@@ -475,6 +475,7 @@ export interface Database {
       is_admin_of: { Args: { tid: string }; Returns: boolean };
       count_paid_seats: { Args: { t: string }; Returns: number };
       seats_remaining: { Args: { t: string }; Returns: number };
+      tenant_slug_available: { Args: { p_slug: string }; Returns: boolean };
     };
     Enums: {
       app_role: AppRole;
