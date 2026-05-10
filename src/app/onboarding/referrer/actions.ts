@@ -5,6 +5,10 @@ import { createClient } from '@/lib/supabase/server'
 import { encryptForStorage } from '@/lib/contracts/encryption'
 import { sendContractForMember, SendContractError } from '@/lib/contracts/send'
 import { redirect } from 'next/navigation'
+import {
+  requireActiveSubscription,
+  SubscriptionGuardError,
+} from '@/lib/auth/require-active-subscription'
 
 type SaveReferrerInfoResult = { ok: false; error: string }
 
@@ -152,6 +156,15 @@ export async function saveReferrerInfo(input: unknown): Promise<SaveReferrerInfo
     .eq('role', 'referrer')
     .single()
   if (!member) return { ok: false, error: 'Aucune adhesion apporteur active trouvee.' }
+
+  try {
+    await requireActiveSubscription(member.tenant_id)
+  } catch (e) {
+    if (e instanceof SubscriptionGuardError) {
+      return { ok: false, error: `subscription_${e.reason}` }
+    }
+    throw e
+  }
 
   // Trigger contract send (inline — caller is the member themselves)
   let contractId: string

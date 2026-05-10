@@ -3,6 +3,7 @@
 import { z } from 'zod'
 import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import type { AppRole } from '@/types/database'
+import { evaluateSubscriptionAccess } from '@/lib/auth/require-active-subscription'
 
 const Schema = z.object({
   invitationId: z.string().uuid(),
@@ -53,6 +54,19 @@ export async function acceptInvitation(
   if (invitation.role !== role) return { ok: false, error: 'role_mismatch' }
   if (invitation.accepted_at) return { ok: false, error: 'invitation_already_accepted' }
   if (new Date(invitation.expires_at) < new Date()) return { ok: false, error: 'invitation_expired' }
+
+  const { data: subRow } = await admin
+    .from('subscriptions')
+    .select('status, trial_ends_at')
+    .eq('tenant_id', tenantId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const access = evaluateSubscriptionAccess(subRow ?? null)
+  if (!access.allowed) {
+    return { ok: false, error: 'subscription_inactive' }
+  }
 
   // 2. Check if a user with this email already exists
   const { data: existing } = await admin.auth.admin.listUsers()

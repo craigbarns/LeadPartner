@@ -269,7 +269,7 @@ export default function LandingPage() {
                   </div>
                   <div className="mb-10">
                     <span className="font-display text-7xl tabular tracking-tightest">
-                      {plan.price}
+                      {plan.monthly_price}
                       <span className="text-3xl">€</span>
                     </span>
                     <span className="text-sm text-muted-foreground ml-2">/ mois</span>

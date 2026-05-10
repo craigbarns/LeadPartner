@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/app/sidebar";
 import { Header } from "@/components/app/header";
+import { SubscriptionBanner } from "@/components/app/subscription-banner";
 import { getSession } from "@/lib/auth";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -23,6 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         primaryColor={session.tenant?.primary_color}
       />
       <div className="flex-1 min-w-0 flex flex-col min-h-screen">
+        <SubscriptionBanner />
         <Header
           email={session.user.email}
           fullName={session.profile.full_name}

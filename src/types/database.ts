@@ -12,7 +12,14 @@ export type Json =
 
 export type AppRole = "super_admin" | "company_admin" | "collaborator" | "referrer";
 export type SubscriptionPlan = "starter" | "pro" | "business";
-export type SubscriptionStatus = "trialing" | "active" | "past_due" | "canceled";
+export type SubscriptionStatus =
+  | "trialing"
+  | "active"
+  | "past_due"
+  | "canceled"
+  | "incomplete"
+  | "incomplete_expired"
+  | "unpaid";
 export type IndustryCode =
   | "real_estate"
   | "construction"
@@ -61,6 +68,49 @@ export type ContractStatus =
   | "canceled";
 
 export type ReferrerStatus = "individual" | "auto_entrepreneur" | "company";
+
+/** Alias hors `Database` pour éviter les références circulaires sur `Insert` / `Update`. */
+export type SubscriptionsRow = {
+  id: string;
+  tenant_id: string;
+  plan: SubscriptionPlan;
+  status: SubscriptionStatus;
+  current_period_end: string | null;
+  current_period_start: string | null;
+  trial_ends_at: string | null;
+  canceled_at: string | null;
+  cancel_at_period_end: boolean;
+  billing_cycle: "monthly" | "annual";
+  included_seats: number;
+  extra_seats: number;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  stripe_price_id: string | null;
+  stripe_extra_seat_price_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SeatChangesRow = {
+  id: string;
+  tenant_id: string;
+  type: "add" | "remove";
+  member_id: string | null;
+  effective_at: string;
+  changed_by: string | null;
+  proration_amount_cents: number | null;
+  stripe_invoice_id: string | null;
+  created_at: string;
+};
+
+export type StripeEventsRow = {
+  id: string;
+  stripe_event_id: string;
+  event_type: string;
+  payload: Json;
+  received_at: string;
+  processed_at: string | null;
+};
 
 export interface Database {
   public: {
@@ -331,22 +381,29 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["documents"]["Row"]>;
       };
       subscriptions: {
-        Row: {
-          id: string;
-          tenant_id: string;
-          plan: SubscriptionPlan;
-          status: SubscriptionStatus;
-          current_period_end: string | null;
-          stripe_customer_id: string | null;
-          stripe_subscription_id: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Partial<Database["public"]["Tables"]["subscriptions"]["Row"]> & {
+        Row: SubscriptionsRow;
+        Insert: Partial<SubscriptionsRow> & {
           tenant_id: string;
           plan: SubscriptionPlan;
         };
-        Update: Partial<Database["public"]["Tables"]["subscriptions"]["Row"]>;
+        Update: Partial<SubscriptionsRow>;
+      };
+      seat_changes: {
+        Row: SeatChangesRow;
+        Insert: Partial<SeatChangesRow> & {
+          tenant_id: string;
+          type: "add" | "remove";
+        };
+        Update: Partial<SeatChangesRow>;
+      };
+      stripe_events: {
+        Row: StripeEventsRow;
+        Insert: Partial<StripeEventsRow> & {
+          stripe_event_id: string;
+          event_type: string;
+          payload: Json;
+        };
+        Update: Partial<StripeEventsRow>;
       };
       invitations: {
         Row: {
@@ -416,6 +473,8 @@ export interface Database {
       current_tenant_id: { Args: Record<string, never>; Returns: string | null };
       is_member_of: { Args: { tid: string }; Returns: boolean };
       is_admin_of: { Args: { tid: string }; Returns: boolean };
+      count_paid_seats: { Args: { t: string }; Returns: number };
+      seats_remaining: { Args: { t: string }; Returns: number };
     };
     Enums: {
       app_role: AppRole;

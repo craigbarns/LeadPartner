@@ -42,7 +42,7 @@ export default async function SuperAdminPage() {
   );
   const mrr = activeSubs.reduce((acc, s) => {
     const plan = PLANS.find((p) => p.value === s.plan);
-    return acc + (plan?.price ?? 0);
+    return acc + (plan?.monthly_price ?? 0);
   }, 0);
 
   const trialing = activeSubs.filter((s) => s.status === "trialing").length;
@@ -186,7 +186,7 @@ export default async function SuperAdminPage() {
                 <p className="text-sm text-muted-foreground">{plan.label}</p>
                 <p className="text-2xl font-bold">{count}</p>
                 <p className="text-xs text-muted-foreground">
-                  {formatCurrency(count * plan.price)} / mois
+                  {formatCurrency(count * plan.monthly_price)} / mois
                 </p>
               </div>
             );

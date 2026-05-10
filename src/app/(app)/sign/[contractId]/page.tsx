@@ -4,6 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { sendContractForMember, SendContractError } from '@/lib/contracts/send'
 import { syncContractWithYousign } from '@/lib/contracts/sync'
+import {
+  requireActiveSubscription,
+  SubscriptionGuardError,
+} from '@/lib/auth/require-active-subscription'
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Brouillon',
@@ -64,7 +68,7 @@ export default async function SignPage({
 
     const { data: target } = await supabase
       .from('contracts')
-      .select('id, member_id')
+      .select('id, member_id, tenant_id')
       .eq('id', contractId)
       .single()
 
@@ -77,6 +81,15 @@ export default async function SignPage({
       .single()
 
     if (!member || member.user_id !== user.id) notFound()
+
+    try {
+      await requireActiveSubscription(target.tenant_id)
+    } catch (e) {
+      if (e instanceof SubscriptionGuardError) {
+        redirect(`/sign/${contractId}?error=${encodeURIComponent('Abonnement inactif')}`)
+      }
+      throw e
+    }
 
     let result: { contractId: string }
     try {

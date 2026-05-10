@@ -2,6 +2,10 @@
 
 import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import {
+  requireActiveSubscription,
+  SubscriptionGuardError,
+} from '@/lib/auth/require-active-subscription'
 
 export async function markSignedOffline(memberId: string) {
   const supabase = await createClient()
@@ -15,6 +19,15 @@ export async function markSignedOffline(memberId: string) {
   const { data: caller } = await supabase
     .from('tenant_members').select('role').eq('user_id', user.id).eq('tenant_id', member.tenant_id).single()
   if (caller?.role !== 'company_admin') throw new Error('forbidden')
+
+  try {
+    await requireActiveSubscription(member.tenant_id)
+  } catch (e) {
+    if (e instanceof SubscriptionGuardError) {
+      throw new Error(`subscription_${e.reason}`)
+    }
+    throw e
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createServiceRoleClient() as any

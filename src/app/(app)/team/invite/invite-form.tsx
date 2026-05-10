@@ -14,7 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createClient } from "@/lib/supabase/client";
+import { createInvitation } from "./actions";
+import { UpgradeSeatModal } from "./upgrade-seat-modal";
 
 const ROLE_OPTIONS = [
   { value: "company_admin", label: "Administrateur entreprise" },
@@ -28,35 +29,37 @@ export function InviteForm({ tenantId, userId }: { tenantId: string; userId: str
   const [role, setRole] = useState<(typeof ROLE_OPTIONS)[number]["value"]>("referrer");
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState<string | null>(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [pendingPayload, setPendingPayload] = useState<{ email: string; role: (typeof ROLE_OPTIONS)[number]["value"] } | null>(null);
 
-  async function onSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    setLoading(true);
-    const supabase = createClient();
-    const token = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
-    const { data, error } = await supabase
-      .from("invitations")
-      .insert({
-        tenant_id: tenantId,
-        email: email.toLowerCase().trim(),
-        role,
-        token,
-        expires_at: expiresAt,
-        invited_by: userId,
-      })
-      .select("token")
-      .single();
-    setLoading(false);
-    if (error) {
-      toast.error(error.message);
+  async function submitInvitation(nextEmail: string, nextRole: (typeof ROLE_OPTIONS)[number]["value"]) {
+    const result = await createInvitation({
+      email: nextEmail,
+      role: nextRole,
+      tenantId,
+      userId,
+    });
+    if (!result.ok) {
+      if ("needsUpgrade" in result && result.needsUpgrade) {
+        setPendingPayload({ email: nextEmail, role: nextRole });
+        setUpgradeOpen(true);
+        return;
+      }
+      toast.error("error" in result ? result.error : "Erreur");
       return;
     }
-    const link = `${window.location.origin}/invite/${data.token}`;
+    const link = `${window.location.origin}/invite/${result.token}`;
     setGenerated(link);
     toast.success("Invitation créée. Partagez le lien avec le destinataire.");
     setEmail("");
     router.refresh();
+  }
+
+  async function onSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    setLoading(true);
+    await submitInvitation(email, role);
+    setLoading(false);
   }
 
   async function copy() {
@@ -66,58 +69,72 @@ export function InviteForm({ tenantId, userId }: { tenantId: string; userId: str
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Nouvelle invitation</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email du destinataire</Label>
-            <Input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Rôle</Label>
-            <Select value={role} onValueChange={(v) => setRole(v as typeof role)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ROLE_OPTIONS.map((r) => (
-                  <SelectItem key={r.value} value={r.value}>
-                    {r.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button type="submit" disabled={loading}>
-            {loading ? "Création..." : "Générer le lien"}
-          </Button>
-        </form>
-        {generated && (
-          <div className="mt-6 rounded-md border bg-secondary/40 p-3">
-            <p className="text-sm font-medium mb-2">Lien d&apos;invitation</p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 truncate text-xs bg-background border rounded px-2 py-1">
-                {generated}
-              </code>
-              <Button size="sm" variant="outline" onClick={copy}>
-                Copier
-              </Button>
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Nouvelle invitation</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email du destinataire</Label>
+              <Input
+                id="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Le lien expire dans 14 jours.
-            </p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+            <div className="space-y-2">
+              <Label>Rôle</Label>
+              <Select value={role} onValueChange={(v) => setRole(v as typeof role)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLE_OPTIONS.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>
+                      {r.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button type="submit" disabled={loading}>
+              {loading ? "Création..." : "Générer le lien"}
+            </Button>
+          </form>
+          {generated && (
+            <div className="mt-6 rounded-md border bg-secondary/40 p-3">
+              <p className="text-sm font-medium mb-2">Lien d&apos;invitation</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 truncate text-xs bg-background border rounded px-2 py-1">{generated}</code>
+                <Button size="sm" variant="outline" onClick={copy}>
+                  Copier
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">Le lien expire dans 14 jours.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      <UpgradeSeatModal
+        open={upgradeOpen}
+        memberLabel={pendingPayload?.email ?? ""}
+        onClose={() => {
+          setUpgradeOpen(false);
+          setPendingPayload(null);
+        }}
+        onConfirmed={async () => {
+          setUpgradeOpen(false);
+          if (!pendingPayload) return;
+          setLoading(true);
+          await submitInvitation(pendingPayload.email, pendingPayload.role);
+          setPendingPayload(null);
+          setLoading(false);
+        }}
+      />
+    </>
   );
 }

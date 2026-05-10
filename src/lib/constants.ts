@@ -58,47 +58,62 @@ export const ROLE_LABELS: Record<AppRole, string> = {
 export const PLANS: {
   value: SubscriptionPlan;
   label: string;
-  price: number;
+  monthly_price: number;
+  annual_price: number;
+  included_seats: number;
+  extra_seat_monthly: number;
   features: string[];
   cta: string;
 }[] = [
   {
     value: "starter",
     label: "Starter",
-    price: 49,
+    monthly_price: 29,
+    annual_price: 296,
+    included_seats: 3,
+    extra_seat_monthly: 12,
     features: [
-      "Jusqu'à 25 apporteurs",
-      "100 opportunités / mois",
+      "1 admin + 2 collaborateurs",
+      "Apporteurs illimités",
       "Branding personnalisé",
+      "Signature de contrats Yousign",
       "Support email",
     ],
-    cta: "Démarrer l'essai",
+    cta: "Choisir Starter",
   },
   {
     value: "pro",
     label: "Pro",
-    price: 149,
+    monthly_price: 79,
+    annual_price: 806,
+    included_seats: 6,
+    extra_seat_monthly: 9,
     features: [
+      "1 admin + 5 collaborateurs",
       "Apporteurs illimités",
-      "1 000 opportunités / mois",
-      "Champs personnalisés par secteur",
-      "Règles de commissions avancées",
-      "Domaine personnalisé",
+      "Branding personnalisé",
+      "Signature de contrats Yousign",
+      "Support prioritaire",
+      "Sièges supplémentaires +9 €/mois",
     ],
     cta: "Choisir Pro",
   },
   {
     value: "business",
     label: "Business",
-    price: 399,
+    monthly_price: 199,
+    annual_price: 2030,
+    included_seats: 16,
+    extra_seat_monthly: 6,
     features: [
-      "Tout Pro inclus",
-      "Opportunités illimitées",
-      "Multi-équipes",
-      "API & intégrations",
-      "Support prioritaire 24/7",
+      "1 admin + 15 collaborateurs",
+      "Apporteurs illimités",
+      "Branding personnalisé",
+      "Signature de contrats Yousign",
+      "Support dédié",
+      "Sièges supplémentaires +6 €/mois (dégressif)",
     ],
-    cta: "Contacter les ventes",
+    cta: "Choisir Business",
   },
 ];
 
