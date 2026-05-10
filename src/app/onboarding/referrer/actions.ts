@@ -2,7 +2,7 @@
 
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-import { encrypt } from '@/lib/contracts/encryption'
+import { encryptForStorage } from '@/lib/contracts/encryption'
 import { sendContractForMember, SendContractError } from '@/lib/contracts/send'
 import { redirect } from 'next/navigation'
 
@@ -64,7 +64,7 @@ export async function saveReferrerInfo(input: unknown) {
     city: data.city,
     country: data.country,
     phone: data.phone,
-    iban_encrypted: encrypt(data.iban),
+    iban_encrypted: encryptForStorage(data.iban),
     bic: data.bic ?? null,
   }
 
@@ -73,7 +73,7 @@ export async function saveReferrerInfo(input: unknown) {
       birth_date: data.birth_date,
       birth_place: data.birth_place,
       nationality: data.nationality,
-      social_security_number_encrypted: encrypt(data.social_security_number),
+      social_security_number_encrypted: encryptForStorage(data.social_security_number),
     })
   } else if (data.referrer_status === 'auto_entrepreneur') {
     Object.assign(update, {
@@ -98,7 +98,12 @@ export async function saveReferrerInfo(input: unknown) {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase.from('profiles') as any).update(update).eq('id', user.id)
+  const { error: updateError } = await (supabase.from('profiles') as any)
+    .update(update)
+    .eq('id', user.id)
+  if (updateError) {
+    throw new Error(`profile_update_failed: ${updateError.message}`)
+  }
 
   // Find the referrer membership
   const { data: member } = await supabase
