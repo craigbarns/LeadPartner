@@ -1,6 +1,6 @@
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { generateContractPDF } from '@/lib/contracts/generator'
-import { decrypt } from '@/lib/contracts/encryption'
+import { bytesFromBytea, decrypt } from '@/lib/contracts/encryption'
 import { maskIban, maskSSN } from '@/lib/contracts/snapshot'
 import { createSignatureRequest } from '@/lib/yousign/create-request'
 import type { ContractSnapshot, ReferrerSnapshot } from '@/lib/contracts/types'
@@ -52,10 +52,21 @@ export async function sendContractForMember(memberId: string): Promise<SendContr
     .single()
   if (!rule) throw new SendContractError('no_commission_rule')
 
-  const ibanPlain = profile.iban_encrypted ? decrypt(toBuffer(profile.iban_encrypted)) : ''
-  const ssnPlain = profile.social_security_number_encrypted
-    ? decrypt(toBuffer(profile.social_security_number_encrypted))
-    : ''
+  let ibanPlain = ''
+  let ssnPlain = ''
+  try {
+    if (profile.iban_encrypted) {
+      ibanPlain = decrypt(bytesFromBytea(profile.iban_encrypted))
+    }
+    if (profile.social_security_number_encrypted) {
+      ssnPlain = decrypt(bytesFromBytea(profile.social_security_number_encrypted))
+    }
+  } catch (e) {
+    throw new SendContractError(
+      'decryption_failed',
+      `${(e as Error).message}. The encryption key may have rotated since the profile was filled. Reset profiles.iban_encrypted and social_security_number_encrypted, then have the referrer re-enter their info.`,
+    )
+  }
 
   const snapshot = buildSnapshot(profile, tenant, rule, ibanPlain, ssnPlain)
   const pdfBuffer = await generateContractPDF(snapshot)
@@ -102,16 +113,6 @@ export async function sendContractForMember(memberId: string): Promise<SendContr
     .eq('id', contract.id)
 
   return { contractId: contract.id }
-}
-
-function toBuffer(value: string | Buffer | Uint8Array): Buffer {
-  if (Buffer.isBuffer(value)) return value
-  if (value instanceof Uint8Array) return Buffer.from(value)
-  if (typeof value === 'string') {
-    if (value.startsWith('\\x')) return Buffer.from(value.slice(2), 'hex')
-    return Buffer.from(value, 'base64')
-  }
-  throw new Error('Unsupported encrypted column value')
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
