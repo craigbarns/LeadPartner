@@ -22,6 +22,7 @@ export interface YousignDocument {
   id: string
   filename: string
   nature: 'signable_document' | 'attachment'
+  total_pages?: number
 }
 
 export interface YousignWebhookPayload {

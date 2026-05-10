@@ -43,6 +43,7 @@ export async function createSignatureRequest(
     `/signature_requests/${sr.id}/documents`,
     form,
   )
+  const signaturePage = Math.max(1, doc.total_pages ?? 1)
 
   const signer = await yousign.post<YousignSigner>(
     `/signature_requests/${sr.id}/signers`,
@@ -60,7 +61,7 @@ export async function createSignatureRequest(
         {
           type: 'signature',
           document_id: doc.id,
-          page: -1,
+          page: signaturePage,
           x: 350,
           y: 600,
           width: 200,
@@ -86,8 +87,9 @@ export async function downloadSignedPdf(
   signatureRequestId: string,
   documentId: string,
 ): Promise<Buffer> {
-  const apiKey = process.env.YOUSIGN_API_KEY
-  const apiBase = process.env.YOUSIGN_API_BASE ?? 'https://api-sandbox.yousign.app/v3'
+  const apiKey = process.env.YOUSIGN_API_KEY?.trim()
+  const apiBase = (process.env.YOUSIGN_API_BASE?.trim() || 'https://api-sandbox.yousign.app/v3')
+    .replace(/\/+$/, '')
   if (!apiKey) throw new Error('YOUSIGN_API_KEY is not configured')
 
   const url = `${apiBase}/signature_requests/${signatureRequestId}/documents/${documentId}/download`
