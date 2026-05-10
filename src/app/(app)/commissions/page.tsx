@@ -164,7 +164,7 @@ export default async function CommissionsPage() {
         <EmptyState
           icon={CreditCard}
           title="Aucune commission pour l'instant"
-          description="Les commissions sont créées automatiquement quand vous validez une opportunité gagnée. Vous pouvez aussi les ajouter manuellement plus tard."
+          description="Une commission apparaît quand une opportunité liée à un apporteur passe en « Vente réalisée » (ou équivalent) et qu’une règle par défaut existe. Les opportunités sans apporteur ne génèrent pas de commission."
         />
       )}
     </div>
