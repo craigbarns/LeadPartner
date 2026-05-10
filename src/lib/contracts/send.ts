@@ -72,23 +72,68 @@ export async function sendContractForMember(memberId: string): Promise<SendContr
   const snapshot = buildSnapshot(profile, tenant, rule, ibanPlain, ssnPlain)
   const pdfBuffer = await generateContractPDF(snapshot)
 
-  const { data: contract, error: cErr } = await admin
+  const { data: existingContracts, error: lookupErr } = await admin
     .from('contracts')
-    .insert({
-      tenant_id: member.tenant_id,
-      member_id: member.id,
-      status: 'draft',
-      contract_data: snapshot,
-    })
     .select('*')
-    .single()
-  if (cErr || !contract) throw new SendContractError('contract_insert_failed', cErr?.message)
+    .eq('tenant_id', member.tenant_id)
+    .eq('member_id', member.id)
+    .in('status', ['draft', 'pending_info', 'sent', 'signed'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+
+  if (lookupErr) {
+    throw new SendContractError('contract_lookup_failed', lookupErr.message)
+  }
+
+  let contract = existingContracts?.[0]
+
+  if (contract?.status === 'sent' || contract?.status === 'signed') {
+    return { contractId: contract.id }
+  }
+
+  if (contract) {
+    const { data: updatedDraft, error: draftErr } = await admin
+      .from('contracts')
+      .update({
+        status: 'draft',
+        contract_data: snapshot,
+      })
+      .eq('id', contract.id)
+      .select('*')
+      .single()
+
+    if (draftErr || !updatedDraft) {
+      throw new SendContractError('contract_update_failed', draftErr?.message)
+    }
+
+    contract = updatedDraft
+  } else {
+    const { data: createdDraft, error: cErr } = await admin
+      .from('contracts')
+      .insert({
+        tenant_id: member.tenant_id,
+        member_id: member.id,
+        status: 'draft',
+        contract_data: snapshot,
+      })
+      .select('*')
+      .single()
+
+    if (cErr || !createdDraft) {
+      throw new SendContractError('contract_insert_failed', cErr?.message)
+    }
+
+    contract = createdDraft
+  }
 
   const unsignedPath = `${member.tenant_id}/${contract.id}.pdf`
   const pdfBytes = new Uint8Array(pdfBuffer)
-  await admin.storage
+  const { error: uploadErr } = await admin.storage
     .from('contracts-unsigned')
     .upload(unsignedPath, pdfBytes, { contentType: 'application/pdf', upsert: true })
+  if (uploadErr) {
+    throw new SendContractError('contract_upload_failed', uploadErr.message)
+  }
 
   const fullName: string = profile.full_name ?? profile.email ?? ''
   const [first, ...rest] = fullName.split(' ')
@@ -113,7 +158,7 @@ export async function sendContractForMember(memberId: string): Promise<SendContr
     throw e
   }
 
-  await admin
+  const { error: updateErr } = await admin
     .from('contracts')
     .update({
       status: 'sent',
@@ -123,6 +168,9 @@ export async function sendContractForMember(memberId: string): Promise<SendContr
       sent_at: new Date().toISOString(),
     })
     .eq('id', contract.id)
+  if (updateErr) {
+    throw new SendContractError('contract_update_failed', updateErr.message)
+  }
 
   return { contractId: contract.id }
 }

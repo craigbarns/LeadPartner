@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { sendContractForMember, SendContractError } from '@/lib/contracts/send'
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Brouillon',
@@ -13,8 +14,15 @@ const STATUS_LABELS: Record<string, string> = {
   canceled: 'Annulé',
 }
 
-export default async function SignPage({ params }: { params: Promise<{ contractId: string }> }) {
+export default async function SignPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ contractId: string }>
+  searchParams: Promise<{ error?: string }>
+}) {
   const { contractId } = await params
+  const { error } = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -26,6 +34,42 @@ export default async function SignPage({ params }: { params: Promise<{ contractI
     .single()
 
   if (!contract) notFound()
+
+  async function resendContract() {
+    'use server'
+
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) redirect('/login')
+
+    const { data: target } = await supabase
+      .from('contracts')
+      .select('id, member_id')
+      .eq('id', contractId)
+      .single()
+
+    if (!target) notFound()
+
+    const { data: member } = await supabase
+      .from('tenant_members')
+      .select('id, user_id')
+      .eq('id', target.member_id)
+      .single()
+
+    if (!member || member.user_id !== user.id) notFound()
+
+    let result: { contractId: string }
+    try {
+      result = await sendContractForMember(target.member_id)
+    } catch (e) {
+      const message = e instanceof SendContractError
+        ? e.detail ?? e.code
+        : 'Erreur serveur pendant la generation du contrat.'
+      redirect(`/sign/${contractId}?error=${encodeURIComponent(message)}`)
+    }
+
+    redirect(`/sign/${result.contractId}`)
+  }
 
   if (contract.status === 'signed') {
     return (
@@ -43,16 +87,34 @@ export default async function SignPage({ params }: { params: Promise<{ contractI
     )
   }
 
+  const isDraft = contract.status === 'draft' || contract.status === 'pending_info'
+
   return (
     <div className="container max-w-xl py-10">
       <Card>
         <CardHeader><CardTitle>Signature de votre contrat</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          <p>Un email vient de vous être envoyé par Yousign avec le lien de signature.</p>
-          <p className="text-sm text-muted-foreground">
-            Vérifiez votre boîte de réception (et vos spams). Une fois la signature effectuée,
-            cette page se mettra à jour et vous aurez accès au dashboard.
-          </p>
+          {isDraft ? (
+            <>
+              <p>Votre contrat est prêt, mais il n&apos;a pas encore été envoyé à Yousign.</p>
+              <p className="text-sm text-muted-foreground">
+                Relancez l&apos;envoi pour générer le lien de signature. Si Yousign refuse la
+                demande, le détail s&apos;affichera ici.
+              </p>
+              <form action={resendContract}>
+                <Button type="submit">Relancer l&apos;envoi du contrat</Button>
+              </form>
+            </>
+          ) : (
+            <>
+              <p>Un email vient de vous être envoyé par Yousign avec le lien de signature.</p>
+              <p className="text-sm text-muted-foreground">
+                Vérifiez votre boîte de réception (et vos spams). Une fois la signature effectuée,
+                cette page se mettra à jour et vous aurez accès au dashboard.
+              </p>
+            </>
+          )}
+          {error && <p className="text-sm text-destructive">{error}</p>}
           <p className="text-sm">
             Statut actuel : <strong>{STATUS_LABELS[contract.status] ?? contract.status}</strong>
           </p>
